@@ -4,14 +4,23 @@ from pathlib import Path
 from dataclasses import dataclass
 from typing import Literal
 import csv
+import time
 
 DIR = Path(__file__).parent
 SAVE_PATH = DIR / "output.csv"
 
 BASE_URL = "https://syllabus.kosen-k.go.jp"
-URL: list[str] = [
-    "https://syllabus.kosen-k.go.jp/Pages/PublicSubjects?school_id=44&department_id=36&year=2025&lang=ja",  # 創造工学科(共通)
-    "https://syllabus.kosen-k.go.jp/Pages/PublicSubjects?school_id=44&department_id=34&year=2025&lang=ja",  # 情報システムコース(専攻)
+URL: list[tuple[str, int]] = [
+    ("https://syllabus.kosen-k.go.jp/Pages/PublicSubjects?school_id=44&department_id=36&year=2021&lang=ja", 1),  # 1年次(学科共通)
+    ("https://syllabus.kosen-k.go.jp/Pages/PublicSubjects?school_id=44&department_id=36&year=2022&lang=ja", 2),  # 2年次(学科共通)
+    ("https://syllabus.kosen-k.go.jp/Pages/PublicSubjects?school_id=44&department_id=36&year=2023&lang=ja", 3),  # 3年次(学科共通)
+    ("https://syllabus.kosen-k.go.jp/Pages/PublicSubjects?school_id=44&department_id=36&year=2024&lang=ja", 4),  # 4年次(学科共通)
+    ("https://syllabus.kosen-k.go.jp/Pages/PublicSubjects?school_id=44&department_id=36&year=2025&lang=ja", 5),  # 5年次(学科共通)
+    ("https://syllabus.kosen-k.go.jp/Pages/PublicSubjects?school_id=44&department_id=34&year=2021&lang=ja", 1),  # 1年次(情報システムコース)
+    ("https://syllabus.kosen-k.go.jp/Pages/PublicSubjects?school_id=44&department_id=34&year=2022&lang=ja", 2),  # 2年次(情報システムコース)
+    ("https://syllabus.kosen-k.go.jp/Pages/PublicSubjects?school_id=44&department_id=34&year=2023&lang=ja", 3),  # 3年次(情報システムコース)
+    ("https://syllabus.kosen-k.go.jp/Pages/PublicSubjects?school_id=44&department_id=34&year=2024&lang=ja", 4),  # 4年次(情報システムコース)
+    ("https://syllabus.kosen-k.go.jp/Pages/PublicSubjects?school_id=44&department_id=34&year=2025&lang=ja", 5),  # 5年次(情報システムコース)
 ]
 
 
@@ -19,10 +28,18 @@ def main():
     units: list[KosenUnit] = []
 
     # すべてのURLからシラバスを取得して解析し、単位情報を収集
-    for url in URL:
+    for url, grade in URL:
+        print(f"Fetching {url} ...")
+
         html = get_syllabus(url)
-        u = parse_syllabus(html)
-        units.extend(u)
+        units_all = parse_syllabus(html)
+        units_filtered = filter(
+            lambda x: x.grade == grade, units_all
+        )  # 学年でフィルタリング
+        units.extend(units_filtered)
+
+        # サーバーへの負荷を避けるために待機
+        time.sleep(0.5)
 
     # 学年→ 専門/一般 → 必修/選択 → 科目番号の順でソート
     units.sort(key=lambda x: (x.grade, x.category, x.required, x.code))
@@ -52,6 +69,8 @@ def main():
         writer = csv.writer(f)
         writer.writerow(csv_headers)
         writer.writerows(csv_rows)
+
+    print("Done! Saved to", SAVE_PATH)
 
 
 @dataclass
